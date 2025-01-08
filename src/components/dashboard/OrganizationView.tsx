@@ -7,6 +7,7 @@ import { TopBar } from "@/components/ui/top-bar";
 import { Layout } from "@/components/ui/layout";
 import { Building2, Mail, FileText, ArrowRight, Truck } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import InputMask from "react-input-mask"; // Adicione esta linha
 import dayjs from 'dayjs';
 import 'dayjs/locale/pt-br'
 dayjs.locale('pt-br');
@@ -26,7 +27,6 @@ interface OrganizationViewProps {
 const OrganizationView = ({
 	onSubmit,
 }: OrganizationViewProps) => {
-
 	const [organization, setOrganization] = useState<Organization | null>(null);
 
 	useEffect(() => {
@@ -41,14 +41,42 @@ const OrganizationView = ({
 		fetchOrg();
 	}, []);
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		const formData = new FormData(e.target as HTMLFormElement);
-		onSubmit?.({
-			name: formData.get("name") as string,
-			cnpj: formData.get("cnpj") as string,
-			email: formData.get("email") as string,
-		});
+		const name = formData.get("name") as string;
+		const cnpj = formData.get("cnpj") as string;
+		const email = formData.get("email") as string;
+
+		try {
+			// Adicionar registro da empresa
+			const { data: company, error: companyError } = await supabase
+				.from("company")
+				.insert({ name, cnpj, email })
+				.select("id, name, cnpj, email")
+				.single();
+
+			if (companyError) throw companyError;
+
+			// Atualizar perfil do usuário com company_id
+			const { data: { user } } = await supabase.auth.getUser();
+			if (user) {
+				const { error: profileError } = await supabase
+					.from("profiles")
+					.update({ company_id: company.id })
+					.eq("id", user.id);
+
+				if (profileError) throw profileError;
+			}
+
+			// Atualizar estado da organização
+			setOrganization(company);
+
+			// Chamar callback onSubmit se fornecido
+			onSubmit?.({ name, cnpj, email });
+		} catch (error) {
+			console.error("Erro ao criar organização ou atualizar perfil:", error);
+		}
 	};
 
 	return (
@@ -104,14 +132,14 @@ const OrganizationView = ({
 								</p>
 								<div className="space-y-4">
 									{/* <div className="p-4 rounded-lg bg-white/5 border border-white/10">
-										<div className="flex items-center gap-3">
-											<Truck className="w-5 h-5 text-blue-400" />
-											<div>
-												<p className="text-sm text-gray-400">Caminhões</p>
-												<p className="text-2xl font-bold text-white">12</p>
-											</div>
-										</div>
-									</div> */}
+                                        <div className="flex items-center gap-3">
+                                            <Truck className="w-5 h-5 text-blue-400" />
+                                            <div>
+                                                <p className="text-sm text-gray-400">Caminhões</p>
+                                                <p className="text-2xl font-bold text-white">12</p>
+                                            </div>
+                                        </div>
+                                    </div> */}
 									{/* Add more stats as needed */}
 								</div>
 							</Card>
@@ -160,13 +188,16 @@ const OrganizationView = ({
 												CNPJ
 											</div>
 										</Label>
-										<Input
+										<InputMask
 											id="cnpj"
 											name="cnpj"
 											required
 											placeholder="00.000.000/0000-00"
+											mask="99.999.999/9999-99"
 											className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
-										/>
+										>
+											{(inputProps) => <Input {...inputProps} />}
+										</InputMask>
 									</div>
 
 									<div className="space-y-2">

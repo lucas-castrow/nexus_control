@@ -1,5 +1,5 @@
 import { Suspense, useEffect } from "react";
-import { useRoutes, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import Home from "./components/home";
 import Login from "./components/auth/login";
 import OrganizationView from "./components/dashboard/OrganizationView";
@@ -8,16 +8,19 @@ import { supabase } from "./lib/supabase";
 
 function App() {
   const navigate = useNavigate();
+  const location = useLocation();
+
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
+      if (session && location.pathname === "/login") {
         navigate("/dashboard");
       }
     };
 
     checkAuth();
-  }, [navigate]);
+  }, [navigate, location.pathname]);
+
   return (
     <Suspense fallback={<p>Loading...</p>}>
       <>
