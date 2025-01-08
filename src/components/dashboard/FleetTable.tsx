@@ -25,6 +25,7 @@ import { useAppSelector } from "@/store/hooks";
 import { Dialog, DialogContent, DialogTitle } from "@radix-ui/react-dialog";
 import { DialogHeader } from "../ui/dialog";
 import { DeleteTruckDialog } from "../truck/DeleteTruckDialog";
+import { ViewDriversDialog } from "../driver/ViewDriversDialog";
 
 interface Driver {
 	id: string;
@@ -63,6 +64,8 @@ const FleetTable = ({
 	const [driverPage, setDriverPage] = useState(1);
 	const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
 	const [truckToRemove, setTruckToRemove] = useState<TruckData | null>(null);
+	const [isViewDriversOpen, setIsViewDriversOpen] = useState(false);
+
 	const trucksPerPage = 10;
 	const driversPerPage = 5;
 
@@ -237,6 +240,14 @@ const FleetTable = ({
 						>
 							<UserPlus className="h-4 w-4" />
 							Adicionar motorista
+						</Button>
+
+						<Button
+							variant="outline"
+							onClick={() => setIsViewDriversOpen(true)}
+							className="flex-1 md:flex-none border-white/20 text-white hover:bg-white/10 flex items-center gap-2"
+						>
+							Ver motoristas
 						</Button>
 					</div>
 
@@ -426,6 +437,11 @@ const FleetTable = ({
 			/>
 
 			<DeleteTruckDialog truckToRemove={truckToRemove} open={isRemoveModalOpen} onOpenChange={setIsRemoveModalOpen} onConfirmRemove={handleConfirmRemove} />
+
+			<ViewDriversDialog
+				open={isViewDriversOpen}
+				onOpenChange={setIsViewDriversOpen}
+			/>
 		</Card>
 	);
 };
