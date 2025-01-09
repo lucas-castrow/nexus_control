@@ -34,7 +34,10 @@ const VisualizationSection: React.FC<Props> = ({
 
 			expenseData.forEach((expense) => {
 				const truckId = expense.truck_id;
-				const truckName = expense.truck.plate;
+				const truck = Array.isArray(expense.truck) ? expense.truck[0] : expense.truck;
+
+				const truckName = truck.plate
+
 				const amount = expense.amount;
 				const type = expense.type;
 

@@ -29,6 +29,7 @@ interface Driver {
 interface AddTruckDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
+	onSubmit?: (truck: { name: string; plate: string; driver: Driver; status: string }) => void;
 }
 
 export function AddTruckDialog({
@@ -81,12 +82,12 @@ export function AddTruckDialog({
 			console.error("Erro ao adicionar caminhão:", error);
 		} else {
 			onOpenChange(false);
-			onSubmit({
-				name: truckData.name,
-				plate: truckData.plate,
-				driver: selectedDriver,
-				status: truckData.status,
-			});
+			// onSubmit({
+			// 	name: truckData.name,
+			// 	plate: truckData.plate,
+			// 	driver: selectedDriver,
+			// 	status: truckData.status,
+			// });
 		}
 	};
 

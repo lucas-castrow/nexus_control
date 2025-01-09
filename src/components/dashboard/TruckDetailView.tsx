@@ -35,12 +35,13 @@ interface CostEntry {
 	description: string;
 	amount: number;
 	driver: {
-		name: string;
-		cpf: string;
-		phone: string;
+		name?: any;
+		cpf?: any;
+		phone?: any;
 	};
 	receiptUrls: string[];
 	category: "combustivel" | "manutencao" | "pedagio" | "comissao" | "outros";
+	trip?: Trip;
 }
 
 
@@ -51,27 +52,36 @@ interface CostTrip {
 	comissaoCost: number;
 	outrosCost: number;
 	totalCost: number;
-	start_km: number;
-	end_km: number;
-	start_time: string;
-	end_time: string;
 	driver: {
-		name: string;
-		cpf: string;
-		phone: string;
+		name?: any;
+		cpf?: any;
+		phone?: any;
 	};
+	origin: any;
+	destination?: any;
+	driver_id?: any;
+	truck_id?: any;
+	status?: any;
+	start_km?: any;
+	start_time?: any;
+	end_time?: any;
+	frete?: any;
+	comissao?: any;
+	end_km?: any;
 }
 interface Trip {
-	id: string;
-	origin: string;
-	destination: string;
-	driver_id: string;
-	truck_id: string;
-	status: string;
-	start_km: number;
-	start_time: string;
-	frete: number;
-	comissao: number;
+	id?: any;
+	origin?: any;
+	destination?: any;
+	driver_id?: any;
+	truck_id?: any;
+	status?: any;
+	start_km?: any;
+	start_time?: any;
+	end_time?: any;
+	frete?: any;
+	comissao?: any;
+	end_km?: any;
 }
 interface TruckDetailViewProps {
 	open?: boolean;
@@ -143,52 +153,54 @@ const TruckDetailView: React.FC<TruckDetailViewProps> = ({
 
 			const costTimeline: CostEntry[] = expenses.map((expense) => {
 				costBreakdown[expense.type] += expense.amount;
-
+				const trips = Array.isArray(expense.trip) ? expense.trip[0] : expense.trip;
 				return {
 					date: expense.created_at,
-					trip: expense.trip,
+					trip: trips,
 					description: expense.description,
 					amount: expense.amount,
-					driver: expense.driver,
+					driver: Array.isArray(expense.driver) ? expense.driver[0] : expense.driver,
 					receiptUrls: expenseImagesMap[expense.id] || [],
 					category: expense.type,
 				};
 			});
 
-			const groupedExpenses = expenses.reduce((acc, expense) => {
-				const tripId = expense.trip?.id;
-				if (!tripId) return acc; // Ignore expenses without a trip
+			const groupedExpenses = expenses ? expenses.reduce((acc, expense) => {
+				const tripz = Array.isArray(expense.trip) ? expense.trip[0] : expense.trip;
+				if (tripz) {
+					const tripId = tripz.id;
+					if (!tripId) return acc;
 
-				if (!acc[tripId]) {
-					acc[tripId] = {
-						pedagioCost: 0,
-						manutencaoCost: 0,
-						combustivelCost: 0,
-						outrosCost: 0,
-						comissaoCost: 0,
-						totalCost: 0,
-						origin: expense.trip?.origin,
-						destination: expense.trip?.destination,
-						start_km: expense.trip?.start_km,
-						end_km: expense.trip?.end_km,
-						status: expense.trip?.status,
-						start_time: expense.trip?.start_time,
-						end_time: expense.trip?.end_time,
-						driver: expense.driver,
-						frete: expense.trip?.frete,
-						comissao: expense.trip?.comissao,
-					};
+					if (!acc[tripId]) {
+						acc[tripId] = {
+							pedagioCost: 0,
+							manutencaoCost: 0,
+							combustivelCost: 0,
+							outrosCost: 0,
+							comissaoCost: 0,
+							totalCost: 0,
+							origin: tripz.origin,
+							destination: tripz.destination,
+							start_km: tripz.start_km,
+							end_km: tripz.end_km,
+							status: tripz.status,
+							start_time: tripz.start_time,
+							end_time: tripz.end_time,
+							driver: Array.isArray(expense.driver) ? expense.driver[0] : expense.driver,
+							frete: tripz.frete,
+							comissao: tripz.comissao,
+						};
+					}
+
+					acc[tripId][`${expense.type}Cost`] += expense.amount;
+					acc[tripId].totalCost += expense.amount;
 				}
+				return acc; // Certifique-se de retornar o acumulador aqui
+			}, {} as Record<string, CostTrip>) : {}; // Adicione um valor padrão vazio
 
-				acc[tripId][`${expense.type}Cost`] += expense.amount;
-				acc[tripId].totalCost += expense.amount;
-
-				return acc;
-			}, {} as Record<string, CostTrip>);
-
-			const costTrip = Object.values(groupedExpenses).sort((a, b) => {
+			const costTrip = groupedExpenses ? Object.values(groupedExpenses).sort((a, b) => {
 				return new Date(b.start_time).getTime() - new Date(a.start_time).getTime();
-			});
+			}) : [];
 
 			setTruckData({
 				id: truck.id,
@@ -613,7 +625,7 @@ const TruckDetailView: React.FC<TruckDetailViewProps> = ({
 																{dayjs(date).format("DD/MM/YYYY")}
 															</div>
 															<div className="space-y-6">
-																{entries.map((entry, entryIndex) => (
+																{Array.isArray(entries) && entries.map((entry: CostEntry, entryIndex: number) => (
 																	<div key={entryIndex} className="flex items-start gap-4">
 																		<div className="flex-grow">
 																			<div className="flex items-start justify-between">

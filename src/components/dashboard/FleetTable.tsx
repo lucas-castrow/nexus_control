@@ -30,8 +30,8 @@ import { ViewDriversDialog } from "../driver/ViewDriversDialog";
 interface Driver {
 	id: string;
 	name: string;
-	cpf: string;
-	phone: string;
+	cpf?: string;
+	phone?: string;
 }
 
 interface TruckData {
@@ -106,7 +106,7 @@ const FleetTable = ({
 
 			const formattedData: TruckData[] = data.map((truck) => {
 				const expenses = truck.expense || [];
-				const drivers = truck.driver || {};
+				const drivers = truck.driver || { id: '', name: '' };
 				const combustivel_amount = expenses
 					.filter((e) => e.type === "combustivel")
 					.reduce((acc, curr) => acc + curr.amount, 0);
@@ -126,7 +126,7 @@ const FleetTable = ({
 					id: truck.id,
 					name: truck.name,
 					plate: truck.plate,
-					driver_name: drivers.name,
+					driver_name: Array.isArray(drivers) ? '' : drivers.name,
 					combustivel_amount,
 					manutencao_amount,
 					pedagio_amount,

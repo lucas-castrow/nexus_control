@@ -138,7 +138,7 @@ export default function Login() {
 				</form>
 			</Card>
 
-			<style jsx>{`
+			<style>{`
         @keyframes blob1 {
           0% {
             transform: translate(0, 0) scale(1);
