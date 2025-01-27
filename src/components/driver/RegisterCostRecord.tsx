@@ -17,6 +17,7 @@ import { supabase } from "@/lib/supabase";
 import { useParams } from "react-router-dom";
 import dayjs from "dayjs";
 import { FinalizeTripDialog } from "../truck/FinalizeTripDialog";
+import CurrencyInput from "react-currency-input-field";
 
 interface Driver {
 	id: string;
@@ -385,9 +386,9 @@ const RegisterCostRecord = () => {
 												<span className="ml-1">{dayjs(trip?.start_time).format("DD/MM/YYYY HH:mm")}</span>
 											</div>
 										</div>
-										<Button onClick={handleFinalizeClick} className="mt-4 mb-4">
+										{/* <Button onClick={handleFinalizeClick} className="mt-4 mb-4">
 											Finalizar Trajeto
-										</Button>
+										</Button> */}
 										{finalizeWarning && <p className="text-red-500">{finalizeWarning}</p>}
 
 									</div>
@@ -415,13 +416,22 @@ const RegisterCostRecord = () => {
 											className="bg-white/10 border-white/20 text-white mb-2"
 										/>
 										<Label htmlFor="startKm" className="text-gray-300">KM Inicial</Label>
-										<Input
+										{/* <Input
 											id="startKm"
 											placeholder="KM Inicial"
 											type="number"
 											value={startKm}
 											onChange={(e) => setStartKm(Number(e.target.value))}
 											className="bg-white/10 border-white/20 text-white"
+										/> */}
+
+										<CurrencyInput
+											id="startKm"
+											className="flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 bg-white/10 border-white/20 text-white mb-2"
+											value={startKm || 0}
+											onValueChange={(value) => setStartKm(value ? parseFloat(value) : 0)}
+											decimalSeparator=","
+											groupSeparator="."
 										/>
 										<Button onClick={startTrip} className="bg-gradient-to-r from-blue-500 to-purple-600">
 											Iniciar Trajeto

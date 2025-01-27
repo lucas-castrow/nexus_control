@@ -25,12 +25,18 @@ import {
 	DollarSign,
 	ArrowUp,
 	ArrowDown,
+	Trash2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "../ui/button";
 import NewCostModal from "../expense/NewCostModal";
+import EditCostModal from "../expense/EditCostModal";
+import ConfirmDeleteTripModal from "../expense/ConfirmDeleteTripModal";
+import StartTripModal from "../trip/StartTripModal";
+import ConfirmDeleteCostModal from "../expense/ConfirmDeleteCostModal";
 
 interface CostEntry {
+	id?: string;
 	date: string;
 	description: string;
 	amount: number;
@@ -41,11 +47,17 @@ interface CostEntry {
 	};
 	receiptUrls: string[];
 	category: "combustivel" | "manutencao" | "pedagio" | "comissao" | "outros";
-	trip?: Trip;
+	trip?: {
+		id: string;
+		origin: string;
+		destination: string;
+		comissao: any;
+	};
 }
 
 
 interface CostTrip {
+	id: string;
 	pedagioCost: number;
 	manutencaoCost: number;
 	combustivelCost: number;
@@ -70,9 +82,9 @@ interface CostTrip {
 	end_km?: any;
 }
 interface Trip {
-	id?: any;
-	origin?: any;
-	destination?: any;
+	id: string;
+	origin: string;
+	destination: string;
 	driver_id?: any;
 	truck_id?: any;
 	status?: any;
@@ -104,11 +116,105 @@ const TruckDetailView: React.FC<TruckDetailViewProps> = ({
 	const [showConfirmEndTrip, setShowConfirmEndTrip] = useState(false);
 
 	const [editFrete, setEditFrete] = useState(false);
+	const [isEditFreteModalOpen, setIsEditFreteModalOpen] = useState(false);
+	const [selectedTripForFrete, setSelectedTripForFrete] = useState<Trip | null>(null);
 	const [inputFrete, setInputFrete] = useState<number>(0);
 
 	const [editComissao, setEditComissao] = useState(false);
 	const [inputComissao, setInputComissao] = useState<number>(0);
 	const [isNewCostModalOpen, setIsNewCostModalOpen] = useState(false);
+	const [isEditCostModalOpen, setIsEditCostModalOpen] = useState(false);
+	const [selectedCost, setSelectedCost] = useState<CostEntry | null>(null);
+
+	const [isConfirmDeleteTripModalOpen, setIsConfirmDeleteTripModalOpen] = useState(false);
+	const [selectedTripForDelete, setSelectedTripForDelete] = useState<Trip | null>(null);
+
+	const [isStartTripModalOpen, setIsStartTripModalOpen] = useState(false);
+
+	const [isConfirmDeleteCostModalOpen, setIsConfirmDeleteCostModalOpen] = useState(false);
+	const [selectedCostForDelete, setSelectedCostForDelete] = useState<CostEntry | null>(null);
+
+	const handleDeleteCost = (cost: CostEntry) => {
+		setSelectedCostForDelete(cost);
+		setIsConfirmDeleteCostModalOpen(true);
+	};
+
+	const confirmDeleteCost = async () => {
+		try {
+			const { error } = await supabase
+				.from("expense")
+				.delete()
+				.eq("id", selectedCostForDelete?.id);
+
+			if (error) throw error;
+
+			setIsConfirmDeleteCostModalOpen(false);
+			fetchTruckData();
+		} catch (error) {
+			console.error("Erro ao deletar custo:", error);
+		}
+	};
+
+
+	const handleDeleteTrip = (trip: Trip) => {
+		setSelectedTripForDelete(trip);
+		setIsConfirmDeleteTripModalOpen(true);
+	};
+
+	const confirmDeleteTrip = async () => {
+		try {
+			await supabase
+				.from("trip")
+				.delete()
+				.eq("id", selectedTripForDelete?.id);
+			setIsConfirmDeleteTripModalOpen(false);
+			fetchTruckData();
+		} catch (error) {
+			console.error("Erro ao deletar viagem:", error);
+		}
+	};
+
+	const handleEditFrete = (trip: Trip) => {
+		setSelectedTripForFrete(trip);
+		setInputFrete(trip.frete || 0);
+		setIsEditFreteModalOpen(true);
+	};
+
+	const handleFreteTripSave = async () => {
+		try {
+			await supabase
+				.from("trip")
+				.update({ frete: inputFrete })
+				.eq("id", selectedTripForFrete?.id);
+
+			const { data: income, error: incomeError } = await supabase
+				.from("income")
+				.select("id")
+				.eq("trip_id", selectedTripForFrete?.id)
+				.single();
+
+			if (income) {
+				await supabase
+					.from("income")
+					.update({ amount: inputFrete })
+					.eq("id", income.id);
+			}
+
+			if (incomeError && incomeError.code !== "PGRST116") throw incomeError;
+
+			setIsEditFreteModalOpen(false);
+			fetchTruckData();
+		} catch (error) {
+			console.error("Erro ao atualizar frete:", error);
+		}
+	};
+
+
+	const handleEditCost = (cost: CostEntry) => {
+		setSelectedCost(cost);
+		setIsEditCostModalOpen(true);
+	};
+
 
 	const fetchTruckData = async () => {
 		try {
@@ -155,6 +261,7 @@ const TruckDetailView: React.FC<TruckDetailViewProps> = ({
 				costBreakdown[expense.type] += expense.amount;
 				const trips = Array.isArray(expense.trip) ? expense.trip[0] : expense.trip;
 				return {
+					id: expense.id,
 					date: expense.created_at,
 					trip: trips,
 					description: expense.description,
@@ -173,6 +280,7 @@ const TruckDetailView: React.FC<TruckDetailViewProps> = ({
 
 					if (!acc[tripId]) {
 						acc[tripId] = {
+							id: tripId,
 							pedagioCost: 0,
 							manutencaoCost: 0,
 							combustivelCost: 0,
@@ -371,7 +479,6 @@ const TruckDetailView: React.FC<TruckDetailViewProps> = ({
 											</CardTitle>
 										</CardHeader>
 										<CardContent>
-
 											{inTrip && trip && (
 												<div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-6">
 													{/* Informações da Viagem */}
@@ -481,7 +588,21 @@ const TruckDetailView: React.FC<TruckDetailViewProps> = ({
 													</div>
 												</div>
 											)}
+											{!inTrip && (
+												<Card className="bg-green-500 text-white mb-6">
+													<CardHeader className="flex items-center justify-center space-y-0 pb-2 h-20">
+														<DollarSign className="w-6 h-6 mr-2" />
+														<CardTitle className="text-lg font-bold">Iniciar Trajeto</CardTitle>
+													</CardHeader>
+													<CardContent className="text-center">
+														<p className="mb-4">Inicie um trajeto com o caminhão para seu motorista poder registrar os custos!</p>
+														<Button variant="outline" onClick={() => setIsStartTripModalOpen(true)} className="bg-blue-500 text-white hover:bg-blue-600">
+															Iniciar Trajeto
+														</Button>
 
+													</CardContent>
+												</Card>
+											)}
 											{!inTrip && (
 												<>
 													<div className="text-lg font-bold mb-4">
@@ -687,9 +808,20 @@ const TruckDetailView: React.FC<TruckDetailViewProps> = ({
 																							<div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 rounded-lg transition-opacity flex items-center justify-center">
 																								<Maximize2 className="w-4 h-4 text-white" />
 																							</div>
+
 																						</div>
+
 																					))}
 																				</div>
+																				<div className="flex gap-2">
+																					<Button variant="ghost" size="icon" onClick={() => handleEditCost(entry)}>
+																						<Edit className="w-4 h-4 text-blue-500" />
+																					</Button>
+																					<Button variant="ghost" size="icon" onClick={() => handleDeleteCost(entry)}>
+																						<Trash2 className="w-4 h-4 text-red-500" />
+																					</Button>
+																				</div>
+
 																			</div>
 																		</div>
 																	</div>
@@ -715,13 +847,20 @@ const TruckDetailView: React.FC<TruckDetailViewProps> = ({
 												<div key={index} className="bg-gray-800 p-6 rounded-lg shadow-md mb-6">
 													{/* Título com Origem e Destino */}
 													<div className="flex justify-between items-center border-b border-gray-700 pb-4 mb-4">
-														<h3 className="text-green-500 font-bold text-lg">
-															{tripCost.origin} → {tripCost.destination}
-														</h3>
-														<span className="text-gray-400 text-sm">
-															Início: {dayjs(tripCost.start_time).format("DD/MM/YYYY HH:mm")} | Fim:{" "}
-															{tripCost.end_time ? dayjs(tripCost.end_time).format("DD/MM/YYYY HH:mm") : "Em andamento"}
-														</span>
+														<div className="flex flex-col">
+															<h3 className="text-green-500 font-bold text-lg">
+																{tripCost.origin} → {tripCost.destination}
+															</h3>
+															<span className="text-gray-400 text-sm">
+																Início: {dayjs(tripCost.start_time).format("DD/MM/YYYY HH:mm")}
+															</span>
+															<span className="text-gray-400 text-sm">
+																Fim: {tripCost.end_time ? dayjs(tripCost.end_time).format("DD/MM/YYYY HH:mm") : "Em andamento"}
+															</span>
+														</div>
+														<Button variant="ghost" size="icon" onClick={() => handleDeleteTrip(tripCost)}>
+															<Trash2 className="w-6 h-6 text-red-500" />
+														</Button>
 													</div>
 
 													{/* Informações principais e custos em grid */}
@@ -753,6 +892,9 @@ const TruckDetailView: React.FC<TruckDetailViewProps> = ({
 																	R$ {tripCost.frete}
 																</span>
 															</div>
+															<p className="text-blue-500 mt-2 cursor-pointer" onClick={() => handleEditFrete(tripCost)}>
+																Alterar o valor de frete dessa viagem
+															</p>
 														</div>
 
 														{/* Custos */}
@@ -855,7 +997,67 @@ const TruckDetailView: React.FC<TruckDetailViewProps> = ({
 					onClose={() => setSelectedImages(null)}
 				/>
 			)}
-			<NewCostModal company_id={truckData.company_id} truckId={truckId} isOpen={isNewCostModalOpen} onClose={() => setIsNewCostModalOpen(false)} />
+			<NewCostModal company_id={truckData.company_id} truckId={truckId} isOpen={isNewCostModalOpen} onClose={() => setIsNewCostModalOpen(false)} onAdded={fetchTruckData} />
+			{isEditCostModalOpen && selectedCost && (
+				<EditCostModal
+					cost={selectedCost}
+					onClose={() => setIsEditCostModalOpen(false)}
+					onSave={fetchTruckData}
+				/>
+			)}
+			{isEditFreteModalOpen && (
+				<Dialog open={isEditFreteModalOpen} onOpenChange={setIsEditFreteModalOpen}>
+					<DialogContent className="max-w-lg bg-black/80 border-white/10 backdrop-blur-xl text-white">
+						<DialogHeader>
+							<DialogTitle>Alterar Valor de Frete</DialogTitle>
+						</DialogHeader>
+						<div className="space-y-4">
+							<CurrencyInput
+								id="input-frete"
+								className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white"
+								value={inputFrete}
+								onValueChange={(value) => setInputFrete(value ? parseFloat(value) : 0)}
+								decimalSeparator=","
+								groupSeparator="."
+							/>
+							<div className="flex justify-end space-x-4">
+								<Button variant="outline" onClick={() => setIsEditFreteModalOpen(false)}>
+									Cancelar
+								</Button>
+								<Button onClick={handleFreteTripSave}>
+									Salvar
+								</Button>
+							</div>
+						</div>
+					</DialogContent>
+				</Dialog>
+			)}
+
+			{isConfirmDeleteTripModalOpen && selectedTripForDelete && (
+				<ConfirmDeleteTripModal
+					trip={selectedTripForDelete}
+					onClose={() => setIsConfirmDeleteTripModalOpen(false)}
+					onConfirm={confirmDeleteTrip}
+				/>
+			)}
+			{isStartTripModalOpen && (
+				<StartTripModal
+					isOpen={isStartTripModalOpen}
+					onClose={() => setIsStartTripModalOpen(false)}
+					truckId={truckId}
+					driverId={selectedDriver}
+					// companyId={truckData.company_id}
+					onTripStarted={fetchTruckData}
+				/>
+			)}
+
+			{isConfirmDeleteCostModalOpen && selectedCostForDelete && (
+				<ConfirmDeleteCostModal
+					cost={selectedCostForDelete}
+					onClose={() => setIsConfirmDeleteCostModalOpen(false)}
+					onConfirm={confirmDeleteCost}
+				/>
+			)}
 		</>
 	);
 };

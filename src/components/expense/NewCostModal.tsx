@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Label } from '../ui/label';
@@ -6,25 +6,51 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '.
 import { Input } from '../ui/input';
 import { DollarSign, FileText, Upload, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import dayjs from "dayjs";
+import CurrencyInput from 'react-currency-input-field';
 
-const NewCostModal = ({ isOpen, onClose, truckId, company_id }) => {
+const NewCostModal = ({ isOpen, onClose, truckId, company_id, onAdded }) => {
 	const [images, setImages] = useState([]);
 	const [error, setError] = useState<string | null>(null);
 	const [message, setMessage] = useState<string | null>(null);
+	const [trips, setTrips] = useState([]);
+	const [selectedTrip, setSelectedTrip] = useState<string | null>("none");
+
+	useEffect(() => {
+		const fetchTrips = async () => {
+			const { data: tripsData, error: tripsError } = await supabase
+				.from("trip")
+				.select("id, origin, destination, start_time")
+				.eq("truck_id", truckId);
+
+			if (tripsError) {
+				setError("Erro ao buscar viagens.");
+				return;
+			}
+
+			setTrips(tripsData);
+		};
+
+		if (isOpen) {
+			fetchTrips();
+		}
+	}, [isOpen, truckId]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		const formData = new FormData(e.target as HTMLFormElement);
 		const type = formData.get("type") as string;
 		const description = formData.get("description") as string;
-		const amount = parseFloat(formData.get("amount") as string);
+		const amount = formData.get("amount") as string;
+		const amountNumber = parseFloat(amount.replace(/\./g, '').replace(',', '.'));
 
 		const { data: expenseData, error: expenseError } = await supabase.from("expense").insert({
 			type: type,
 			description: description,
-			amount: amount,
+			amount: amountNumber,
 			truck_id: truckId,
 			company_id: company_id,
+			trip_id: selectedTrip === "none" ? null : selectedTrip,
 		}).select("id").single()
 
 		if (expenseError) {
@@ -62,7 +88,9 @@ const NewCostModal = ({ isOpen, onClose, truckId, company_id }) => {
 		setMessage("Despesa registrada com sucesso!");
 		setError(null);
 		setImages([]);
+		onAdded();
 		(e.target as HTMLFormElement).reset();
+		onClose();
 	};
 
 	const handleImageUpload = (event) => {
@@ -86,6 +114,27 @@ const NewCostModal = ({ isOpen, onClose, truckId, company_id }) => {
 						{message && <div className="text-green-500">{message}</div>}
 						<div className="space-y-4">
 							<div className="grid gap-2">
+								<Label htmlFor="trip" className="text-gray-300">
+									Viagem
+								</Label>
+								<Select name="trip" value={selectedTrip} onValueChange={setSelectedTrip}>
+									<SelectTrigger className="bg-white/10 border-white/20 text-white">
+										<SelectValue placeholder="Selecione a viagem (opcional)" />
+									</SelectTrigger>
+									<SelectContent className="text-white bg-black/90 border-white/10">
+										<SelectItem value="none" className="text-white">
+											Nenhuma
+										</SelectItem>
+										{trips.map((trip) => (
+											<SelectItem key={trip.id} value={trip.id} className="text-white">
+												{trip.origin} → {trip.destination} ({dayjs(trip.start_time).format("DD/MM/YYYY HH:mm")})
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+
+							<div className="grid gap-2">
 								<Label htmlFor="type" className="text-gray-300">
 									Tipo de Despesa
 								</Label>
@@ -94,16 +143,16 @@ const NewCostModal = ({ isOpen, onClose, truckId, company_id }) => {
 										<SelectValue placeholder="Selecione o tipo de despesa" />
 									</SelectTrigger>
 									<SelectContent className="bg-black/90 border-white/10">
-										<SelectItem value="pedagio" className="text-white focus:bg-white/10">
+										<SelectItem value="pedagio" className="text-white">
 											Pedágio
 										</SelectItem>
-										<SelectItem value="manutencao" className="text-white focus:bg-white/10">
+										<SelectItem value="manutencao" className="text-white ">
 											Manutenção
 										</SelectItem>
-										<SelectItem value="combustivel" className="text-white focus:bg-white/10">
+										<SelectItem value="combustivel" className="text-white">
 											Combustível
 										</SelectItem>
-										<SelectItem value="outros" className="text-white focus:bg-white/10">
+										<SelectItem value="outros" className="text-white">
 											Outros
 										</SelectItem>
 									</SelectContent>
@@ -117,14 +166,14 @@ const NewCostModal = ({ isOpen, onClose, truckId, company_id }) => {
 										Valor
 									</div>
 								</Label>
-								<Input
+								<CurrencyInput
 									id="amount"
 									name="amount"
-									type="number"
-									step="0.01"
-									required
 									placeholder="0.00"
-									className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+									decimalSeparator=","
+									groupSeparator="."
+									required
+									className="flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 bg-white/10 border-white/20 text-white placeholder:text-gray-400"
 								/>
 							</div>
 
